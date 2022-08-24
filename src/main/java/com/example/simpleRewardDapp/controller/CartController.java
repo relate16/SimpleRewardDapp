@@ -6,9 +6,7 @@ import com.example.simpleRewardDapp.repository.CartItemRepository;
 import com.example.simpleRewardDapp.repository.CartRepository;
 import com.example.simpleRewardDapp.repository.ItemRepository;
 import com.example.simpleRewardDapp.repository.MemberRepository;
-import com.example.simpleRewardDapp.service.CartItemService;
-import com.example.simpleRewardDapp.service.OrderItemService;
-import com.example.simpleRewardDapp.service.OrderService;
+import com.example.simpleRewardDapp.service.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -33,14 +31,17 @@ public class CartController {
     private final OrderItemService orderItemService;
     private final CartItemService cartItemService;
     private final OrderService orderService;
+    private final ItemService itemService;
+    private final MemberService memberService;
+    private final CartService cartService;
 
     @PostMapping("/cart/add")
     public Result addCart(@RequestBody CartParam cartParam) {
-        Member member = getMember(cartParam);
-        Cart cart = getCart(member);
+        Member member = memberService.getMember(cartParam.username);
+        Cart cart = cartService.getCart(member);
         CartDto cartDto = new CartDto(cart.getId(), member.getUsername());
         for (CartItemDto cartItemDto : cartParam.getCartItemDtos()) {
-            Item item = getItem(cartItemDto.getItemDto());
+            Item item = itemService.getItem(cartItemDto.getItemDto().getName());
 
             CartItem cartItem = cartItemService.createCartItem(item, cart, cartItemDto.getQuantity(), item.getPrice());
 
@@ -58,8 +59,9 @@ public class CartController {
      */
     @PostMapping("/cart/sub")
     public Result subCart(@RequestBody CartParam cartParam) {
-        Member member = getMember(cartParam);
-        Cart cart = getCart(member);
+        Member member = memberService.getMember(cartParam.username);
+        Cart cart = cartService.getCart(member);
+
         for (CartItemDto cartItemDto : cartParam.getCartItemDtos()) {
             List<CartItem> cartItems = cartItemRepository.findByItemName(cartItemDto.getItemDto().getName());
             cartItemService.deleteCartItem(cartItems.get(0));
@@ -80,12 +82,12 @@ public class CartController {
     public Result orderAllInCart(@RequestBody MemberDto memberDto) {
         Optional<Member> findMember = memberRepository.findByUsername(memberDto.getUsername());
         Member member = findMember.orElseThrow(() -> new RuntimeException("찾는 멤버가 없습니다."));
-        Cart cart = getCart(member);
+        Cart cart = cartService.getCart(member);
         List<CartItem> cartItems = cartItemRepository.findCartItemsByCartId(cart.getId());
         Order order = orderService.createOrder(member);
         for (CartItem cartItem : cartItems) {
-            OrderItem orderItem = orderItemService
-                    .createOrderItem(cartItem.getItem(), cart, cartItem.getQuantity(), cartItem.getPrice(), order);
+            orderItemService.createOrderItem(cartItem.getItem(), cart,
+                    cartItem.getQuantity(), cartItem.getPrice(), order);
             //카트에서 제거되면 아이템 재고 복구
             cartItemService.deleteCartItem(cartItem);
         }
@@ -96,21 +98,6 @@ public class CartController {
 
     }
 
-    private Item getItem(ItemDto itemDto) {
-        Optional<Item> findItem = itemRepository.findByName(itemDto.getName());
-        Item item = findItem.orElseThrow(() -> new RuntimeException("해당 아이템이 없습니다."));
-        return item;
-    }
-
-    private Member getMember(CartParam cartParam) {
-        Optional<Member> findMember = memberRepository.findByUsername(cartParam.getUsername());
-        return findMember.orElseThrow(() -> new RuntimeException("해당 사용자가 없습니다."));
-    }
-
-    private Cart getCart(Member member) {
-        Optional<Cart> findCart = cartRepository.findByMemberId(member.getId());
-        return findCart.orElseThrow(() -> new RuntimeException("해당 장바구니가 없습니다."));
-    }
     private OrderDto getOrderDto(Member member, Order order) {
         return new OrderDto(order.getId(), member.getUsername(), order.getSavedPoint(), order.getTotalPrice(),
                 order.getOrderItems().stream()

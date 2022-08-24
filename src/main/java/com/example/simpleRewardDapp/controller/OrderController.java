@@ -1,14 +1,10 @@
 package com.example.simpleRewardDapp.controller;
 
-import com.example.simpleRewardDapp.dto.CartDto;
 import com.example.simpleRewardDapp.dto.ItemDto;
 import com.example.simpleRewardDapp.dto.OrderDto;
 import com.example.simpleRewardDapp.dto.OrderItemDto;
 import com.example.simpleRewardDapp.entity.*;
-import com.example.simpleRewardDapp.repository.*;
-import com.example.simpleRewardDapp.service.MemberService;
-import com.example.simpleRewardDapp.service.OrderItemService;
-import com.example.simpleRewardDapp.service.OrderService;
+import com.example.simpleRewardDapp.service.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -17,34 +13,31 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
 public class OrderController {
 
-    private final MemberRepository memberRepository;
-    private final ItemRepository itemRepository;
-    private final CartRepository cartRepository;
-
     private final OrderService orderService;
     private final OrderItemService orderItemService;
     private final MemberService memberService;
+    private final ItemService itemService;
+    private final CartService cartService;
 
 
     @PostMapping("/orders/cash")
     public Result ordersWithCash(@RequestBody OrderParam orderParam) {
 
-        Member member = getMember(orderParam);
-        Cart cart = getCart(member);
+        Member member = memberService.getMember(orderParam.getUsername());
+        Cart cart = cartService.getCart(member);
 
         Order order = orderService.createOrder(member);
 
-        for (OrderItemDto orderitemdto : orderParam.getOrderItemDtos()) {
-            Item item = getItem(orderitemdto.getItemDto());
+        for (OrderItemDto orderItemDto : orderParam.getOrderItemDtos()) {
+            Item item = itemService.getItem(orderItemDto.getItemDto().getName());
             OrderItem orderItem =
-                    orderItemService.createOrderItem(item, cart, orderitemdto.getQuantity(), item.getPrice(), order);
+                    orderItemService.createOrderItem(item, cart, orderItemDto.getQuantity(), item.getPrice(), order);
             orderService.plusSavePoint(order, orderItem, item);
         }
 
@@ -67,14 +60,14 @@ public class OrderController {
 
     @PostMapping("/orders/point")
     public Result ordersWithPoint(@RequestBody OrderParam orderParam) {
-        Member member = getMember(orderParam);
-        Cart cart = getCart(member);
+        Member member = memberService.getMember(orderParam.getUsername());
 
+        Cart cart = cartService.getCart(member);
         Order order = orderService.createOrder(member);
 
-        for (OrderItemDto orderItemdto : orderParam.getOrderItemDtos()) {
-            Item item = getItem(orderItemdto.getItemDto());
-            orderItemService.createOrderItem(item, cart, orderItemdto.getQuantity(), item.getPrice(), order);
+        for (OrderItemDto orderItemDto : orderParam.getOrderItemDtos()) {
+            Item item = itemService.getItem(orderItemDto.getItemDto().getName());
+            orderItemService.createOrderItem(item, cart, orderItemDto.getQuantity(), item.getPrice(), order);
         }
 
         int totalPrice = orderService.calculateTotalPrice(order);
@@ -100,21 +93,6 @@ public class OrderController {
                                 new ItemDto(x.getItem().getId(), x.getItem().getName(), x.getItem().getQuantity())
                                 ))
                         .collect(Collectors.toList()));
-    }
-
-    private Item getItem(ItemDto itemdto) {
-        Optional<Item> findItem = itemRepository.findByName(itemdto.getName());
-        return findItem.orElseThrow(() -> new RuntimeException("해당 아이템이 없습니다"));
-    }
-
-    private Cart getCart(Member member) {
-        Optional<Cart> findCart = cartRepository.findByMemberId(member.getId());
-        return findCart.orElseThrow(() -> new RuntimeException("해당 장바구니가 없습니다."));
-    }
-
-    private Member getMember(OrderParam orderParam) {
-        Optional<Member> findMember = memberRepository.findByUsername(orderParam.getUsername());
-        return findMember.orElseThrow(() -> new RuntimeException("해당 사용자가 없습니다."));
     }
 
     @Data
