@@ -92,19 +92,10 @@ public class CartController {
             cartItemService.deleteCartItem(cartItem);
         }
 
-        OrderDto orderDto = getOrderDto(member, order);
+        OrderDto orderDto = orderService.getOrderDto(member, order);
 
         return new Result<OrderDto>(orderDto);
 
-    }
-
-    private OrderDto getOrderDto(Member member, Order order) {
-        return new OrderDto(order.getId(), member.getUsername(), order.getSavedPoint(), order.getTotalPrice(),
-                order.getOrderItems().stream()
-                        .map(x -> new OrderItemDto(x.getId(), x.getQuantity(),
-                                new ItemDto(x.getItem().getId(), x.getItem().getName(), x.getItem().getQuantity())
-                        ))
-                        .collect(Collectors.toList()));
     }
 
     @Data
