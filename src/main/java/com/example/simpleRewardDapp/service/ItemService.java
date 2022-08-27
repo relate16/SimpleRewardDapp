@@ -1,6 +1,5 @@
 package com.example.simpleRewardDapp.service;
 
-import com.example.simpleRewardDapp.dto.ItemDto;
 import com.example.simpleRewardDapp.entity.Item;
 import com.example.simpleRewardDapp.repository.ItemRepository;
 import lombok.RequiredArgsConstructor;

@@ -1,13 +1,13 @@
 package com.example.simpleRewardDapp.service;
 
-import com.example.simpleRewardDapp.entity.Cart;
-import com.example.simpleRewardDapp.entity.Item;
-import com.example.simpleRewardDapp.entity.Order;
-import com.example.simpleRewardDapp.entity.OrderItem;
+import com.example.simpleRewardDapp.dto.OrderItemDto;
+import com.example.simpleRewardDapp.entity.*;
 import com.example.simpleRewardDapp.repository.OrderItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -15,6 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderItemService {
 
     private final OrderItemRepository orderItemRepository;
+
+    private final CartItemService cartItemService;
+    private final ItemService itemService;
+    private final OrderService orderService;
 
     @Transactional
     public OrderItem createOrderItem(Item item, Cart cart, int quantity, int price, Order order) {
@@ -25,6 +29,34 @@ public class OrderItemService {
         orderItemRepository.save(orderItem);
         order.addOrderItem(orderItem);
         return orderItem;
+    }
+
+    @Transactional
+    public void createOrderItemsCash(List<OrderItemDto> orderItemDtos, Cart cart, Order order) {
+        for (OrderItemDto orderItemDto : orderItemDtos) {
+            Item item = itemService.getItem(orderItemDto.getItemDto().getName());
+
+            OrderItem orderItem = createOrderItem(item, cart, orderItemDto.getQuantity(), item.getPrice(), order);
+            orderService.plusSavePoint(order, orderItem, item);
+        }
+    }
+
+    @Transactional
+    public void createOrderItemsPoint(List<OrderItemDto> orderItemDtos, Cart cart, Order order) {
+        for (OrderItemDto orderItemDto : orderItemDtos) {
+            Item item = itemService.getItem(orderItemDto.getItemDto().getName());
+            createOrderItem(item, cart, orderItemDto.getQuantity(), item.getPrice(), order);
+        }
+    }
+
+
+    @Transactional
+    public void createOrderItemsInCart(Cart cart, List<CartItem> cartItems, Order order) {
+        for (CartItem cartItem : cartItems) {
+            createOrderItem(cartItem.getItem(), cart, cartItem.getQuantity(), cartItem.getPrice(), order);
+            //카트에서 제거되면 아이템 재고 복구
+            cartItemService.deleteCartItem(cartItem);
+        }
     }
 
     @Transactional

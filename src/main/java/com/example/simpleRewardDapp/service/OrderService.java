@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,6 +40,28 @@ public class OrderService {
         int savedPoint = (int) (orderItem.getPrice() * orderItem.getQuantity() * (item.getPointPercent()/100.0));
         order.plusSavedPoint(savedPoint);
         return order.getSavedPoint();
+    }
+
+    @Transactional
+    public void checkCanBuyWithCash(Member member, Order order, int totalPrice) {
+        if (member.getCash() < totalPrice) {
+            List<OrderItem> orderItems = order.getOrderItems();
+            for (OrderItem orderItem : orderItems) {
+                orderItem.cancel();
+            }
+            throw new RuntimeException("보유한 금액이 적습니다.");
+        }
+    }
+
+    @Transactional
+    public void checkCanBuyWithPoint(Member member, Order order, int totalPrice) {
+        if (member.getPoint() < totalPrice) {
+            List<OrderItem> orderItems = order.getOrderItems();
+            for (OrderItem orderItem : orderItems) {
+                orderItem.cancel();
+            }
+            throw new RuntimeException("보유한 포인트가 적습니다.");
+        }
     }
 
     public OrderDto getOrderDto(Member member, Order order) {

@@ -35,5 +35,4 @@ public class MemberService {
         member.savePoint(point);
     }
 
-
 }
